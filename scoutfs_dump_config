@@ -1,0 +1,6 @@
+meta_backup_dir="" ## Root dest directory for metadata dump
+fs_mount_path="" ## Mount path of ScoutFS file system
+influxdb_server="" ## Hostname of InfluxDB Server
+influxdb_database="" ## Database name on InfluxDB Server
+influxdb_usename="" ## Username for InfluxDB
+influxdb_password="" ## Password for InfluxDB
