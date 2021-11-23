@@ -13,7 +13,7 @@ rc=$?
 
 ## Check return code and handle accordingly
 if [ ${rc} -ne 0 ]; then
-	echo "scoutfs_meta_backup,fs_mount=${fs_mount_path} success=0,files=0,dirs=0,time=0,rate=0"
+	curl -u ${influxdb_username}:${influxdb_password} -i -XPOST "https://${influxdb_server}:8086/write?db=${influxdb_database}" --data-binary "scoutfs_meta_backup,fs_mount=${fs_mount_path} success=0,files=0,dirs=0,time=0,rate=0"
 else
 	unflushed_files=$(grep "file has no copies and will be restored as damaged" ${log_file} | wc -l)
         IFS=" " read files dirs time rate <<< "$(tail -n 4 ${log_file} |  cut -d':' -f 2- | awk '{print $1}' | xargs)"
