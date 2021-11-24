@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source /etc/telegraf/versity/scout_config
+
 ## Manager check, if not manager, abort
 me=$HOSTNAME
 manager=$(samcli system | grep "scheduler name" | cut -d':' -f 2 | sed 's/\ //g')
@@ -125,7 +127,41 @@ if ! (( $minute % 5 )) ; then
 	        echo "scoutam_tape_stats,poolname=${pool_name},tapename=${tapename} mounts=${mounts},cap_remaining_mb=${cap_remaining},total_cap_mb=${total_cap}"
 	IFS=' '
 	done < "${tfile}"
-
-	## Gather Tape Alerts
 fi
+## Gather Notifications
+sudo samcli notify > "${tfile}"
+last_alert_id=$(cat ${last_alert_file})
+lines=$(tac ${tfile} | sed -e "/ID\:\ ${last_alert_id}/q" | grep -v "Hints" | wc -l)
+if [ ${lines} -ne 3 ]; then
+	## New alerts
+	time=$(date +%s%N)
+	n=1
+	while IFS= read -r line; do
+		is_sev=$(echo "${line}" | grep "Severity:")
+		if [ -n "${is_sev}" ]; then
+			message_sev=$(echo "${line}" | awk '{print $NF}')
+			case $message_sev in
+			        critical)
+					sev_int=3
+					;;
+				warning)
+					sev_int=2
+					;;
+				info)
+					sev_int=1
+					;;
+			esac
+		else
+			ns=$((time+n))
+			n=$((n+1000000000))
+			message_string_raw=$(echo "${line}" | cut -d' ' -f 2- | sed 's/"//g')
+                               message_string=\"${message_string_raw}\"
+                               echo "scoutam_notifications,fs=${fs} sev_string=\"${message_sev}\",sev_int=${sev_int},message=${message_string} ${ns}"
+		fi
+	done < <(tac ${tfile} | sed -e "/ID\:\ ${last_alert_id}/q" | grep -v "Hints\|ID:" | tac)
+	grep "ID:" ${tfile} | tail -n 1 | awk '{print $NF}' > ${last_alert_file}
+else
+	echo "scoutam_notifications,fs=${fs} sev_int=0"
+fi
+
 rm -rf ${tfile}
