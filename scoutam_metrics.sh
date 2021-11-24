@@ -44,6 +44,9 @@ sudo samcli resource | tail -n +2 | cut -d' ' -f 2- | sed -e 's/^[[:space:]]*//'
 while IFS= read -r line; do
 	IFS="," read resource_type name state_string home <<< $(echo ${line})
 	home_host=$(echo ${home} | sed 's/,/_/g')
+	if [ -z "${home_host}" ]; then
+		home_host="None"
+	fi
         echo "sam_metrics,metric_type=resource,resource_type=${resource_type},name=${name},home_host=${home_host},state_string=${state_string} count=1"
 IFS=' '
 done < "${tfile}"
