@@ -10,6 +10,12 @@ if [ "${me}" != "${manager}" ]; then
         exit 0
 fi
 
+## Usage of cache metadata and data
+while IFS= read -r line; do
+        IFS=" " read -r lun_type lun_size total used free used_percent <<< "$(echo "${line}")"
+        echo "versity_df,mount_path=${mount_path},lun_type=${lun_type} size=\"${lun_size}\",total_size=${total},used=${used},free=${free},used_percent=${used_percent}"
+done < <(scoutfs df -p ${mount_path} | tail -n +2)
+
 ## Dump Output to working file
 tfile=$(mktemp /tmp/scoutfs_stat.XXXXXX)
 sudo samcli fs stat > "${tfile}"
