@@ -1,0 +1,2 @@
+fs="" ## Name of FS
+last_alert_file="/etc/telegraf/versity/last_notification_id" ## Assumes deployment in the standard /etc/telegraf/versity dir, modify if needed
