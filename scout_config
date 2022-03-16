@@ -1,3 +1,4 @@
 fs="" ## Name of FS
 mount_path="" ## Path of ScoutFS mount
 last_alert_file="/etc/telegraf/versity/last_notification_id" ## Assumes deployment in the standard /etc/telegraf/versity dir, modify if needed
+check_file="" ## Name of file to stat to check mount
