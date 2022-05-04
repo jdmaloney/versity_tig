@@ -131,40 +131,71 @@ if ! (( $minute % 5 )) ; then
 	IFS=' '
 	done < "${tfile}"
 fi
-## Gather Notifications
-sudo samcli notify > "${tfile}"
-last_alert_id=$(cat ${last_alert_file})
-lines=$(tac ${tfile} | sed -e "/ID\:\ ${last_alert_id}/q" | grep -v "Hints" | wc -l)
-if [ ${lines} -ne 3 ]; then
-	## New alerts
-	time=$(date +%s%N)
-	n=1
-	while IFS= read -r line; do
-		is_sev=$(echo "${line}" | grep "Severity:")
-		if [ -n "${is_sev}" ]; then
-			message_sev=$(echo "${line}" | awk '{print $NF}')
-			case $message_sev in
-			        critical)
-					sev_int=3
-					;;
-				warning)
-					sev_int=2
-					;;
-				info)
-					sev_int=1
-					;;
-			esac
-		else
-			ns=$((time+n))
-			n=$((n+1000000000))
-			message_string_raw=$(echo "${line}" | cut -d' ' -f 2- | sed 's/"//g')
-                               message_string=\"${message_string_raw}\"
-                               echo "scoutam_notifications,fs=${fs} sev_string=\"${message_sev}\",sev_int=${sev_int},message=${message_string} ${ns}"
-		fi
-	done < <(tac ${tfile} | sed -e "/ID\:\ ${last_alert_id}/q" | grep -v "Hints\|ID:" | tac)
-	grep "ID:" ${tfile} | tail -n 1 | awk '{print $NF}' > ${last_alert_file}
-else
-	echo "scoutam_notifications,fs=${fs} sev_int=0"
-fi
-
+	## Gather Notifications
+	sudo samcli notify > "${tfile}"
+	last_alert_id=$(cat ${last_alert_file})
+	lines=$(tac ${tfile} | sed -e "/ID\:\ ${last_alert_id}/q" | grep -v "Hints" | wc -l)
+	if [ ${lines} -ne 3 ] && [ ${lines} -lt 15000 ]; then
+		## New alerts
+		time=$(date +%s%N)
+		n=1
+		while IFS= read -r line; do
+			is_sev=$(echo "${line}" | grep "Severity:")
+			if [ -n "${is_sev}" ]; then
+				message_sev=$(echo "${line}" | awk '{print $NF}')
+				case $message_sev in
+				        critical)
+						sev_int=3
+						;;
+					warning)
+						sev_int=2
+						;;
+					info)
+						sev_int=1
+						;;
+				esac
+			else
+				ns=$((time+n))
+				n=$((n+1000000000))
+				message_string_raw=$(echo "${line}" | cut -d' ' -f 2- | sed 's/"//g')
+                                message_string=\"${message_string_raw}\"
+                                echo "scoutam_notifications,fs=${fs} sev_string=\"${message_sev}\",sev_int=${sev_int},message=${message_string} ${ns}"
+			fi
+		done < <(tac ${tfile} | sed -e "/ID\:\ ${last_alert_id}/q" | grep -v "Hints\|ID:" | tac)
+		grep "ID:" ${tfile} | tail -n 1 | awk '{print $NF}' > ${last_alert_file}
+	elif [ ${lines} -gt 15000 ]; then
+                ## A lot of New alerts throttling ingest to 5,000 alert ids per round
+                time=$(date +%s%N)
+	        ## Gather Notifications
+	        sudo samcli notify > "${tfile}"
+	        last_alert_id=$(cat ${last_alert_file})
+	        lines=$(tac ${tfile} | sed -e "/ID\:\ ${last_alert_id}/q" | grep -v "Hints" | wc -l)
+                while IFS= read -r line; do
+                        is_sev=$(echo "${line}" | grep "Severity:")
+                        if [ -n "${is_sev}" ]; then
+                                message_sev=$(echo "${line}" | awk '{print $NF}')
+                                case $message_sev in
+                                        critical)
+                                                sev_int=3
+                                                ;;
+                                        warning)
+                                                sev_int=2
+                                                ;;
+                                        info)
+                                                sev_int=1
+                                                ;;
+                                esac
+                        else
+                                ns=$((time+n))
+                                n=$((n+1000000000))
+                                message_string_raw=$(echo "${line}" | cut -d' ' -f 2- | sed 's/"//g')
+                                message_string=\"${message_string_raw}\"
+                                echo "scoutam_notifications,fs=${fs} sev_string=\"${message_sev}\",sev_int=${sev_int},message=${message_string} ${ns}"
+                        fi
+                done < <(tac ${tfile} | sed -e "/ID\:\ ${last_alert_id}/q" | grep -v "Hints\|ID:" | tac | head -n 10000)
+		new_end_alert_id=$((last_alert_id+5000))
+		echo "${new_end_alert_id}" > ${last_alert_file}
+	else
+		echo "scoutam_notifications,fs=${fs} sev_int=0"
+	fi
 rm -rf ${tfile}
