@@ -66,7 +66,12 @@ if [ -n "${is_valid_arch}" ]; then
 else
 	arch_valid_error=1
 fi
-echo "sam_metrics,metric_type=status scheduler_run_error=${scheduler_run_error},arch_valid_error=${arch_valid_error}"
+if [ -z "${stage_idle}" ]; then
+        staging_error=0
+else
+        staging_error=1
+fi
+echo "sam_metrics,metric_type=status scheduler_run_error=${scheduler_run_error},arch_valid_error=${arch_valid_error},staging_error=${staging_error}"
 
 minute=$(date +%M)
 if ! (( $minute % 5 )) ; then
