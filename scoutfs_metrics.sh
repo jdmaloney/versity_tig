@@ -4,7 +4,7 @@ source /etc/telegraf/versity/scout_config
 
 ## Manager check, if not manager, abort
 me=$HOSTNAME
-manager=$(samcli system | grep "scheduler name" | cut -d':' -f 2 | sed 's/\ //g')
+manager=$(sudo samcli system | grep "scheduler name" | cut -d':' -f 2 | sed 's/\ //g')
 
 if [ "${me}" != "${manager}" ]; then
         exit 0
