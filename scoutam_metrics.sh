@@ -4,7 +4,7 @@ source /etc/telegraf/versity/scout_config
 
 ## Manager check, if not manager, abort
 me=$HOSTNAME
-manager=$(samcli system | grep "scheduler name" | cut -d':' -f 2 | sed 's/\ //g')
+manager=$(sudo samcli system | grep "scheduler name" | cut -d':' -f 2 | sed 's/\ //g')
 
 if [ "${me}" != "${manager}" ]; then
 	## Gather "samcli status"
@@ -32,17 +32,23 @@ sudo samcli metrics | tail -n +2 > ${tfile}
 
 ## Gather "samcli metrics"
 while IFS= read -r line; do
-	metric_type=$(echo ${line} | cut -d',' -f 1)
-	metric=$(echo ${line} | cut -d':' -f 1 | cut -d',' -f 2)
+	if [ -z "$(echo ${line} | grep ",")" ]; then
+		metric_type=$(echo ${line} | cut -d':' -f 1)
+		metric=$(echo ${metric_type})
+	else
+		metric_type=$(echo ${line} | cut -d':' -f 1)
+#		metric=$(echo ${line} | cut -d':' -f 1 | cut -d',' -f 2)
+		metric="value"
+	fi
 	value=$(echo ${line} | cut -d':' -f 2 | awk '{$1=$1;print}')
 	echo "sam_metrics,metric_type=${metric_type} ${metric}=${value}"
 done < "${tfile}"
 
 ## Gather "samcli resource"
-sudo samcli resource | tail -n +2 | cut -d' ' -f 2- | sed -e 's/^[[:space:]]*//' | sed 's/\ \ /,/g' | sed 's/,\ /,/g' | sed 's/,,/,/g' | sed 's/\ /_/g' | sed '/^[[:space:]]*$/d' > ${tfile}
+sudo samcli resource | tail -n +2 | cut -d' ' -f 2- | sed -e 's/^[[:space:]]*//' | sed 's/\ \ /,/g' | sed 's/,\ /,/g' | tr -s ',' | sed 's/\ /_/g' | sed '/^[[:space:]]*$/d' > ${tfile}
 
 while IFS= read -r line; do
-	IFS="," read resource_type name state_string home <<< $(echo ${line})
+	IFS="," read resource_type name cluster state_string home <<< $(echo ${line})
 	home_host=$(echo ${home} | sed 's/,/_/g')
 	if [ -z "${home_host}" ]; then
 		home_host="None"
